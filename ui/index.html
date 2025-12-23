@@ -2,56 +2,96 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vantage | AI Observability</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>Vantage | Intelligent Governance</title>
+    
+    <!-- SF Pro style fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              brand: "#6366f1",
-              dark: "#0f172a",
-              card: "#1e293b",
+              apple: {
+                black: '#000000',
+                gray: {
+                  900: '#1c1c1e',
+                  800: '#2c2c2e',
+                  700: '#3a3a3c',
+                  600: '#48484a',
+                  500: '#636366',
+                  400: '#8e8e93',
+                },
+                blue: '#007aff',
+                green: '#34c759',
+                red: '#ff3b30',
+                indigo: '#5856d6',
+              }
             },
             fontFamily: {
-              sans: ["Inter", "sans-serif"],
-              display: ["Outfit", "sans-serif"],
-            },
-          },
-        },
-      };
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+            }
+          }
+        }
+      }
     </script>
     <style>
+      :root {
+        --apple-bg: #000000;
+        --apple-card: #1c1c1e;
+        --apple-border: rgba(255, 255, 255, 0.1);
+      }
+
       body {
-        background-color: #0f172a;
-        color: #f8fafc;
-        overflow-x: hidden;
+        background-color: var(--apple-bg);
+        color: #ffffff;
+        -webkit-font-smoothing: antialiased;
+        font-family: 'Inter', sans-serif;
       }
-      .glass {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+
+      .apple-blur {
+        background: rgba(28, 28, 30, 0.8);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
       }
+
+      .apple-card {
+        background: var(--apple-card);
+        border: 1px solid var(--apple-border);
+        border-radius: 12px;
+      }
+
+      .apple-button {
+        background: #ffffff;
+        color: #000000;
+        border-radius: 980px;
+        font-weight: 500;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .apple-button:hover {
+        opacity: 0.9;
+        transform: scale(0.98);
+      }
+
+      /* Custom scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #0f172a;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155;
-        border-radius: 4px;
+        background: #3a3a3c;
+        border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #475569;
+      
+      input::placeholder {
+        color: #636366;
       }
     </style>
   </head>

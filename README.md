@@ -159,7 +159,4 @@ Vantage includes a premium, glassmorphic dashboard built with **React, Tailwind,
 
 ---
 
-
----
-
 > *"Vantage: Because what you don't see, hurts your bottom line."*
