@@ -19,7 +19,6 @@
 6. [Getting Started](#-getting-started)
 7. [Technical Benchmarks](#-technical-benchmarks)
 8. [Roadmap](#-roadmap)
-9. [Author](#-author)
 
 ---
 
@@ -160,10 +159,6 @@ Vantage includes a premium, glassmorphic dashboard built with **React, Tailwind,
 
 ---
 
-## 👨‍💻 Author
-**Soroush Baraouf**  
-*Computer Engineer*  
-[GitHub](https://github.com/SoroushRF) | [LinkedIn](https://linkedin.com/in/soroushbarouf)
 
 ---
 
