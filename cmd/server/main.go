@@ -2,20 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/soroushbar/vantage/internal/audit"
+	"github.com/soroushbar/vantage/internal/config"
 	"github.com/soroushbar/vantage/internal/store"
 	pkgmiddleware "github.com/soroushbar/vantage/pkg/middleware"
 )
@@ -31,7 +35,14 @@ func main() {
 		log.Fatal("COHERE_API_KEY is not set")
 	}
 
-	// 1. Initialize Store
+	// 1. Load Config
+	cfg, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		log.Printf("Failed to load config.yaml, using defaults: %v", err)
+		cfg = &config.Config{ForbiddenKeywords: []string{}}
+	}
+
+	// 2. Initialize Store
 	dbPath := os.Getenv("DATABASE_URL")
 	if dbPath == "" {
 		dbPath = "./audit.db"
@@ -63,24 +74,63 @@ func main() {
 		req.Host = cohereURL.Host
 	}
 
-	// 4. Setup Router
+	// 5. Setup Router
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
-	r.Use(pkgmiddleware.AuditMiddleware(auditChan))
 	r.Use(middleware.Recoverer)
 
-	// Metrics Endpoint
-	r.Handle("/metrics", promhttp.Handler())
+	// Basic CORS for UI
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "X-User-ID"},
+		AllowCredentials: true,
+	}))
 
-	// Proxy all requests to /v1/* to Cohere
-	r.HandleFunc("/v1/*", func(w http.ResponseWriter, r *http.Request) {
-		proxy.ServeHTTP(w, r)
+	// Root redirect/status
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "Vantage v2.0 is operational",
+			"proxy":  "http://localhost:8080/v1/*",
+			"api":    "http://localhost:8080/api/*",
+			"ui":     "http://localhost:3000",
+		})
 	})
 
-	// Health check and Metrics (placeholder)
+	// API Endpoints for UI
+	r.Route("/api", func(r chi.Router) {
+		r.Get("/logs", func(w http.ResponseWriter, r *http.Request) {
+			limitStr := r.URL.Query().Get("limit")
+			limit, _ := strconv.Atoi(limitStr)
+			if limit == 0 {
+				limit = 50
+			}
+			logs, err := st.GetLogs(limit)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(logs)
+		})
+	})
+
+	// Proxy Router with Governance and Auditing
+	r.Group(func(r chi.Router) {
+		r.Use(pkgmiddleware.AuditMiddleware(auditChan))
+		r.Use(pkgmiddleware.GovernanceMiddleware(cfg.ForbiddenKeywords, true))
+
+		r.HandleFunc("/v1/*", func(w http.ResponseWriter, r *http.Request) {
+			proxy.ServeHTTP(w, r)
+		})
+	})
+
+	// Health check and Metrics
+	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Vantage is online"))
 	})

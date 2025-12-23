@@ -7,64 +7,64 @@ import (
 	"time"
 )
 
-// Interaction represents a single request-response cycle captured by the proxy.
-type Interaction struct {
-	Timestamp    time.Time
-	Method       string
-	Path         string
-	RequestBody  []byte
-	ResponseBody []byte
-	StatusCode   int
-	Duration     time.Duration
-}
-
 // AuditMiddleware captures request and response data and sends it to a channel for async processing.
 func AuditMiddleware(auditChan chan<- Interaction) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
+			// Extract User ID
+			userID := r.Header.Get("X-User-ID")
+			if userID == "" {
+				userID = "anonymous"
+			}
+
 			// Capture Request Body
 			var reqBody []byte
 			if r.Body != nil {
 				reqBody, _ = io.ReadAll(r.Body)
-				// Restore body for the next handler
 				r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 			}
 
-			// Wrap ResponseWriter to capture body and status code
+			// Wrap ResponseWriter
 			rw := &responseWriterWrapper{
 				ResponseWriter: w,
 				body:           &bytes.Buffer{},
 				statusCode:     http.StatusOK,
 			}
 
-			// Call the next handler
 			next.ServeHTTP(rw, r)
 
-			// Prepare Interaction record
+			// Capture metadata from context if added by other middlewares
+			isRedacted, _ := r.Context().Value("is_redacted").(bool)
+
+			// Check for blocked header from Governance
+			isBlocked := rw.Header().Get("X-Vantage-Blocked") == "true"
+			if isBlocked {
+				rw.Header().Del("X-Vantage-Blocked") // Clean up
+			}
+
 			interaction := Interaction{
 				Timestamp:    start,
+				UserID:       userID,
 				Method:       r.Method,
 				Path:         r.URL.Path,
 				RequestBody:  reqBody,
 				ResponseBody: rw.body.Bytes(),
 				StatusCode:   rw.statusCode,
 				Duration:     time.Since(start),
+				IsBlocked:    isBlocked,
+				IsRedacted:   isRedacted,
 			}
 
-			// Non-blocking send to the audit channel
 			select {
 			case auditChan <- interaction:
 			default:
-				// If channel is full, we log and drop to maintain performance
-				// In a real app, maybe log a warning or use a larger buffer
 			}
 		})
 	}
 }
 
-// responseWriterWrapper captures the status code and body written to the ResponseWriter.
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	body       *bytes.Buffer

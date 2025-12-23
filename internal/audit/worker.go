@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/soroushbar/vantage/internal/telemetry"
 	"github.com/soroushbar/vantage/pkg/middleware"
@@ -14,7 +15,7 @@ import (
 
 // Store interface for decoupling
 type Store interface {
-	LogInteractionDetailed(method, path string, reqBody, respBody []byte, statusCode int, latencyMs int64, tokens int, safetyScore float64) error
+	LogInteractionDetailed(userID, method, path string, reqBody, respBody []byte, statusCode int, latencyMs int64, tokens int, safetyScore float64, isBlocked, isRedacted bool) error
 }
 
 // Worker processes interactions from the audit channel.
@@ -65,30 +66,41 @@ func (w *Worker) processInteraction(i middleware.Interaction) {
 
 	// 2. Parse Tokens (if it's a Cohere response)
 	tokens := 0
-	if i.StatusCode == 200 && (i.Path == "/v1/chat" || i.Path == "/chat") {
-		var resp struct {
-			Meta struct {
-				BilledUnits struct {
-					InputTokens  int `json:"input_tokens"`
-					OutputTokens int `json:"output_tokens"`
-				} `json:"billed_units"`
-				Tokens struct {
-					InputTokens  int `json:"input_tokens"`
-					OutputTokens int `json:"output_tokens"`
-				} `json:"tokens"`
-			} `json:"meta"`
-		}
-		if err := json.Unmarshal(i.ResponseBody, &resp); err == nil {
-			// Some versions use BilledUnits, some use Tokens
-			tokens = resp.Meta.BilledUnits.InputTokens + resp.Meta.BilledUnits.OutputTokens
-			if tokens == 0 {
-				tokens = resp.Meta.Tokens.InputTokens + resp.Meta.Tokens.OutputTokens
+	if i.StatusCode == 200 && (strings.Contains(i.Path, "/chat")) {
+		var raw map[string]interface{}
+		if err := json.Unmarshal(i.ResponseBody, &raw); err == nil {
+			// Deep dive into the map to find tokens
+			if meta, ok := raw["meta"].(map[string]interface{}); ok {
+				// Try billed_units
+				if bu, ok := meta["billed_units"].(map[string]interface{}); ok {
+					if it, ok := bu["input_tokens"].(float64); ok {
+						tokens += int(it)
+					}
+					if ot, ok := bu["output_tokens"].(float64); ok {
+						tokens += int(ot)
+					}
+				}
+				// Try tokens
+				if tk, ok := meta["tokens"].(map[string]interface{}); ok {
+					if it, ok := tk["input_tokens"].(float64); ok {
+						tokens += int(it)
+					}
+					if ot, ok := tk["output_tokens"].(float64); ok {
+						tokens += int(ot)
+					}
+				}
 			}
 
-			if tokens > 0 {
+			if tokens == 0 {
+				log.Printf("Token detection failed. Raw Meta: %+v", raw["meta"])
+			} else {
 				telemetry.TokenUsageTotal.WithLabelValues("cohere").Add(float64(tokens))
 			}
+		} else {
+			log.Printf("Failed to unmarshal response: %v", err)
 		}
+	} else {
+		log.Printf("Skipping token parse: Status=%d Path=%s", i.StatusCode, i.Path)
 	}
 
 	// 3. Safety Check: Call Classify to detect toxicity/safety
@@ -96,6 +108,7 @@ func (w *Worker) processInteraction(i middleware.Interaction) {
 
 	// 4. Commit to SQLite
 	err := w.store.LogInteractionDetailed(
+		i.UserID,
 		i.Method,
 		i.Path,
 		i.RequestBody,
@@ -104,6 +117,8 @@ func (w *Worker) processInteraction(i middleware.Interaction) {
 		i.Duration.Milliseconds(),
 		tokens,
 		safetyScore,
+		i.IsBlocked,
+		i.IsRedacted,
 	)
 	if err != nil {
 		log.Printf("Failed to log interaction: %v", err)

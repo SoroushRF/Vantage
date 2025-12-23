@@ -1,0 +1,6 @@
+forbidden_keywords:
+  - "password"
+  - "secret_key"
+  - "internal_db"
+  - "proprietary_algorithm"
+  - "social_security"
