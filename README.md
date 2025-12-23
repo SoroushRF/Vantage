@@ -162,7 +162,7 @@ Vantage includes a premium, glassmorphic dashboard built with **React, Tailwind,
 
 ## 👨‍💻 Author
 **Soroush Bar**  
-*Senior Software Engineer & AI Infrastructure Architect*  
+*Computer Engineering Student*  
 [GitHub](https://github.com/SoroushRF) | [LinkedIn](https://linkedin.com/in/soroushbar)
 
 ---
