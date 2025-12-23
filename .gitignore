@@ -1,0 +1,22 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+vantage
+
+# Secrets & Local Config
+.env
+.env.local
+
+# Database
+*.db
+*.db-journal
+
+# Go
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db
