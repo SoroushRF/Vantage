@@ -1,0 +1,21 @@
+# .gitattributes
+
+ui/package-lock.json linguist-generated
+ui/yarn.lock linguist-generated
+ui/pnpm-lock.yaml linguist-generated
+
+
+ui/vite.config.ts linguist-generated
+ui/tsconfig.json linguist-generated
+ui/tsconfig.node.json linguist-generated
+ui/package.json linguist-generated
+*.json linguist-generated
+
+
+ui/dist/** linguist-generated
+ui/build/** linguist-generated
+ui/node_modules/** linguist-generated
+
+
+ui/index.html linguist-vendored
+*.svg linguist-vendored
